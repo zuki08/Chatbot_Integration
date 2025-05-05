@@ -9,7 +9,6 @@ public class MessageRequest {
     private java.util.LinkedList<MSGContent> messages;
     private String model;
     private boolean stream;
-    
     @Data
     @AllArgsConstructor
     public static class MSGContent {
