@@ -49,32 +49,41 @@ public class MessageService {
         .header("Authorization", "Bearer " + API_KEY)
         .bodyValue(new MessageRequest(msgs, "meta-llama/llama-3.1-8b-instruct:free", true))
         .retrieve()
-        .bodyToFlux(String.class);
+        .bodyToFlux(String.class)
+        .map(bit -> bit+"\n");
 
         // res.subscribe(s -> System.out.println(s), errr -> System.err.println(errr));
     }
-
-    public Flux<String> saveAndReturn() {
+    private void saveMessage() {
         StringBuilder sb = new StringBuilder();
         res
-        .map(s -> parseResponse(s))
+        .map(s -> parseResponse(s, false))
         .subscribe(s -> sb.append(s), errr -> System.err.println(errr));
         msgs.add(new MSGContent("assistant", sb.toString()));
-        return res;
     }
 
     public void flushList() {
         msgs.clear();
     }
 
-    private String parseResponse(String res) {
+    public Flux<MSGContent> getMsg() {
+        if(res == null) return null;
+        saveMessage();
+        return res.map(chunk -> {
+            if(chunk.equals("[DONE]")) return new MessageRequest.MSGContent("assistant", "");
+            return new MessageRequest.MSGContent(parseResponse(chunk, true), parseResponse(chunk, false));
+        });
+    }
+
+    private String parseResponse(String res, boolean role) {
         try {
-            if(res.equals("[DONE]")) return "";
+            // System.out.println(res);
+            if(res.contains("[DONE]")) return "";
             JsonNode root = objMapper.readTree(res);
             JsonNode choices = root.path("choices");
             if(choices.isArray()  && choices.size() > 0) {
                 JsonNode msg = choices.get(0).path("delta");
-                return msg.get("content").asText();
+                return role? msg.get("role").asText() : msg.get("content").asText();
             }
         } catch (Exception e) {
             e.printStackTrace();

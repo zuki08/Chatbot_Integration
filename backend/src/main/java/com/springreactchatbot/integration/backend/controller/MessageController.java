@@ -1,7 +1,6 @@
 package com.springreactchatbot.integration.backend.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,10 +20,10 @@ public class MessageController {
     @Autowired
     private MessageService msgService;
     
-    @PostMapping(value = "/message", produces = MediaType.TEXT_PLAIN_VALUE)
-    public Flux<String> handleMessage(@RequestBody MessageRequest.MSGContent msgReq) {
+    @PostMapping("/message")
+    public Flux<MessageRequest.MSGContent> handleMessage(@RequestBody MessageRequest.MSGContent msgReq) {
         msgService.getResponse(msgReq);
-        return msgService.saveAndReturn();
+        return msgService.getMsg();
     }
 
     @GetMapping("/flush")

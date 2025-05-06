@@ -1,11 +1,11 @@
 export default function ChatMessage({role, content}:{role:string, content:string}) {
-    return role === "user" ? (
-        <div className="w-full items-start">
-            <p className="w-[40%]">{content}</p>
+    return role === "assistant" ? (
+        <div className="flex w-full text-start m-2">
+            <p className="w-[90%]">{content}</p>
         </div>
     ) : (
-        <div className="w-full items-end">
-            <p className="w-[40%]">{content}</p>
+        <div className="flex w-full justify-end text-right p-2">
+            <p className="w-[90%]">{content}</p>
         </div>
     )
 }
