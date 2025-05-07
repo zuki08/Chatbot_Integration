@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ public class MessageService {
     }
 
     public void getResponse(MessageRequest.MSGContent msgContent) {
+        if(res != null) return;
         WebClient wc = wcBuilder.build();
         msgs.add(msgContent);
         System.out.println(msgContent.getRole() + " " + msgContent.getContent());
@@ -50,10 +52,36 @@ public class MessageService {
         .bodyValue(new MessageRequest(msgs, "meta-llama/llama-3.1-8b-instruct:free", true))
         .retrieve()
         .bodyToFlux(String.class)
-        .map(bit -> bit+"\n");
-
+        .concatMap(chunk -> Mono.just(chunk + "\n")).cache();
+        // saveMessage();
         // res.subscribe(s -> System.out.println(s), errr -> System.err.println(errr));
+        // return res;
     }
+    
+    public Flux<MSGContent> getMsg() {
+        if(res == null) return null;
+        saveMessage();
+        return res.map(chunk -> {
+            if(chunk.equals("[DONE]")) return new MessageRequest.MSGContent("assistant", "");
+            return new MessageRequest.MSGContent(parseResponse(chunk, true), parseResponse(chunk, false));
+        });
+    }
+
+    public Flux<MSGContent> getTestMsg() {
+        String[] messages = {
+            "Voyager", " 1,", " launched", " in", " 1977,", " is", " the", " farthest", " human-made", " object", " from", " Earth.", 
+            " It", " carries", " a", " Golden", " Record", " containing", " sounds", " and", " images", " representing", " life", 
+            " and", " culture", " on", " Earth,", " intended", " for", " any", " extraterrestrial", " life", " that", " might", 
+            " find", " it.", " Despite", " being", " over", " 14", " billion", " miles", " away,", " Voyager", " 1", " still", 
+            " communicates", " with", " NASA", " using", " the", " Deep", " Space", " Network.", " The", " spacecraft", 
+            " runs", " on", " a", " radioisotope", " thermoelectric", " generator", " and", " has", " enough", " power", 
+            " to", " send", " data", " until", " around", " 2025.", " Its", " journey", " has", " provided", " invaluable", 
+            " information", " about", " the", " outer", " planets", " and", " the", " interstellar", " medium."
+        };
+        Flux<String> fsString = Flux.fromArray(messages);
+        return fsString.map(s -> new MessageRequest.MSGContent("assistant", s));
+    }
+
     private void saveMessage() {
         StringBuilder sb = new StringBuilder();
         res
@@ -66,19 +94,13 @@ public class MessageService {
         msgs.clear();
     }
 
-    public Flux<MSGContent> getMsg() {
-        if(res == null) return null;
-        saveMessage();
-        return res.map(chunk -> {
-            if(chunk.equals("[DONE]")) return new MessageRequest.MSGContent("assistant", "");
-            return new MessageRequest.MSGContent(parseResponse(chunk, true), parseResponse(chunk, false));
-        });
-    }
-
     private String parseResponse(String res, boolean role) {
         try {
-            // System.out.println(res);
-            if(res.contains("[DONE]")) return "";
+            if (res.startsWith("data: ")) {
+                res = res.substring(6);
+            }
+            System.out.println(res);
+            if(res.contains("[DONE]") || res.contains("OPENROUTER")) return "";
             JsonNode root = objMapper.readTree(res);
             JsonNode choices = root.path("choices");
             if(choices.isArray()  && choices.size() > 0) {

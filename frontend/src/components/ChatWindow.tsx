@@ -15,9 +15,21 @@ export default function ChatWindow() {
     content: string;
   };
   const [messages, setMessages] = useState<Message[]>([]);
+  
+  useEffect(() => {
+    const container = document.getElementById("chat-window");
+    if(container === null) return;
+    container.scrollTop = container.scrollHeight;
+  }, [messages]);
+
+  function handleMsgPush() {
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: inputValue },
+      { role: "assistant", content: "" }
+    ]);
+  }
   async function handlePost() {
-    messages.push({ role: "user", content: inputValue });
-    setMessages(messages);
     const res = await fetch("http://localhost:8080/api/message", {
       method: "POST",
       headers: {
@@ -25,46 +37,59 @@ export default function ChatWindow() {
       },
       body: JSON.stringify({ role: "user", content: inputValue }),
     });
-    messages.push({ role: "assistant", content: ""});
-    setMessages(messages);
     const reader = res.body?.getReader();
     if (reader === undefined) return;
     const decoder = new TextDecoder();
-    const { done, value } = await reader.read();
-    if (done) {
-      //pass
-    }
-    const decoded = decoder.decode(value, { stream: true });
-    const data: Array<Message> = JSON.parse(decoded);
-    for (const obj of data) {
-      setMessages((messages) => {
-        const lastMessage = messages[messages.length - 1];
-        const otherMessages = messages.slice(0, messages.length - 1);
-        return [
-          ...otherMessages,
-          { ...lastMessage, content: lastMessage.content + obj.content },
-        ];
-      });
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      const data = decoder.decode(value, { stream: true })
+      const buffer = data.split("\n");
+      for(let objStr of buffer){
+        if(objStr.startsWith("data:")) objStr = objStr.substring(5);
+        if(objStr.length > 0) {
+          // console.log(objStr);
+          const obj = JSON.parse(objStr);
+          setMessages((messages) => {
+            const lastMessage = messages[messages.length - 1]
+            const otherMessages = messages.slice(0, messages.length - 1)
+            return [
+              ...otherMessages,
+              { ...lastMessage, content: lastMessage.content + obj.content },
+            ]
+          })
+        }  
+      }
     }
     setInputValue("");
   }
   return (
-    <div className="flex flex-col w-[30%] h-[80%] border-2 border-gray-200 bg-white rounded-md">
-      <div className="flex flex-col mx-[1%] my-[0.5%] h-[89%] overflow-y-scroll rounded-md bg-gray-300 dark:bg-black">
+    <div className="flex flex-col w-[30%] h-[80%] border-2 border-gray-200 bg-white dark:bg-black dark:border-none rounded-md">
+      <div id="chat-window" className="flex flex-col mx-[1%] my-[0.5%] h-[89%] overflow-y-scroll rounded-md bg-gray-300 dark:bg-black scroll-smooth">
         {messages.map((e, idx) => {
-          return <ChatMessage key={idx} role={e.role} content={e.content} />;
+          return (
+            <div className={e.role === "user" ? "flex flex-row-reverse" : ""} key={e.role+idx}>
+              <ChatMessage role={e.role} content={e.content} />
+            </div>
+          )
         })}
       </div>
-      <div className="flex mx-[1%] my-[0.5%] h-[9%] bg-gray-300 dark:bg-black items-center justify-center">
+      <div className="flex mx-[1%] my-[0.5%] h-[9%] bg-gray-300 dark:bg-black dark:text-white items-center justify-center">
         <input
           value={inputValue}
           placeholder="Message here"
           onChange={(e) => setInputValue(e.target.value)}
+          onKeyUp={(e) => {
+            if(e.key === "Enter") {
+              handleMsgPush();
+              handlePost();
+            }
+          }}
           className="m-1 p-2 w-[79%] border-1 border-red-500 rounded-md overflow-scroll"
         />
         <button
           className="w-[19%] h-[50%] m-1 bg-blue-400 rounded-md"
-          onClick={handlePost}
+          onClick={async () => {handleMsgPush(); await handlePost();}}
         >
           Post
         </button>
