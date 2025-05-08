@@ -37,32 +37,30 @@ public class MessageService {
         msgs = new LinkedList<>();
     }
 
-    public void getResponse(MessageRequest.MSGContent msgContent) {
-        if(res != null) return;
+    public void getResponse(MessageRequest.FBMSGContent msgContent) {
         WebClient wc = wcBuilder.build();
         msgs.add(msgContent);
-        System.out.println(msgContent.getRole() + " " + msgContent.getContent());
-        for(MSGContent m : msgs){
-            System.out.println(m.getRole() + " " + m.getContent());
-        }
+        System.out.println(msgContent.getRole() + " " + msgContent.getContent() + " " + msgContent.getModel());
+        // for(MSGContent m : msgs){
+        //     System.out.println(m.getRole() + " " + m.getContent());
+        // }
         res = wc
         .post()
         .uri(API_URI)
         .header("Authorization", "Bearer " + API_KEY)
-        .bodyValue(new MessageRequest(msgs, "meta-llama/llama-3.1-8b-instruct:free", true))
+        .bodyValue(new MessageRequest(msgs, msgContent.getModel(), true))
         .retrieve()
         .bodyToFlux(String.class)
-        .concatMap(chunk -> Mono.just(chunk + "\n")).cache();
-        // saveMessage();
+        .concatMap(chunk -> Mono.just(chunk + "\n"));
+
         // res.subscribe(s -> System.out.println(s), errr -> System.err.println(errr));
-        // return res;
     }
     
     public Flux<MSGContent> getMsg() {
         if(res == null) return null;
         saveMessage();
         return res.map(chunk -> {
-            if(chunk.equals("[DONE]")) return new MessageRequest.MSGContent("assistant", "");
+            if(chunk.contains("[DONE]")) return new MessageRequest.MSGContent("assistant", "");
             return new MessageRequest.MSGContent(parseResponse(chunk, true), parseResponse(chunk, false));
         });
     }
@@ -99,7 +97,6 @@ public class MessageService {
             if (res.startsWith("data: ")) {
                 res = res.substring(6);
             }
-            System.out.println(res);
             if(res.contains("[DONE]") || res.contains("OPENROUTER")) return "";
             JsonNode root = objMapper.readTree(res);
             JsonNode choices = root.path("choices");

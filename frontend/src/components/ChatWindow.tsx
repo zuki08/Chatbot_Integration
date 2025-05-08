@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import ChatMessage from "./ChatMessage";
 
-export default function ChatWindow() {
+export default function ChatWindow({model}:{model:string}) {
   useEffect(() => {
     fetch("http://localhost:8080/api/flush").then((res) => {
       if (!res.ok) {
@@ -22,12 +22,22 @@ export default function ChatWindow() {
     container.scrollTop = container.scrollHeight;
   }, [messages]);
 
+  function handleDownload() {
+    const a = document.createElement("a");
+    const objURL = URL.createObjectURL(new Blob([JSON.stringify(messages)], {type:"text"}));
+    a.href = objURL;
+    a.download = `chat_history+${Date.now()}.txt`
+    a.click();
+    URL.revokeObjectURL(objURL);
+  }
+
   function handleMsgPush() {
     setMessages((prev) => [
       ...prev,
       { role: "user", content: inputValue },
       { role: "assistant", content: "" }
     ]);
+    setInputValue("");
   }
   async function handlePost() {
     const res = await fetch("http://localhost:8080/api/message", {
@@ -35,7 +45,7 @@ export default function ChatWindow() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ role: "user", content: inputValue }),
+      body: JSON.stringify({ role: "user", content: inputValue, model}),
     });
     const reader = res.body?.getReader();
     if (reader === undefined) return;
@@ -60,8 +70,7 @@ export default function ChatWindow() {
           })
         }  
       }
-    }
-    setInputValue("");
+    }    
   }
   return (
     <div className="flex flex-col w-[30%] h-[80%] border-2 border-gray-200 bg-white dark:bg-black dark:border-none rounded-md">
@@ -78,7 +87,9 @@ export default function ChatWindow() {
         <input
           value={inputValue}
           placeholder="Message here"
-          onChange={(e) => setInputValue(e.target.value)}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+          }}
           onKeyUp={(e) => {
             if(e.key === "Enter") {
               handleMsgPush();
@@ -94,6 +105,12 @@ export default function ChatWindow() {
           Post
         </button>
       </div>
+      <button
+        className="w-full dark:text-white"
+        onClick={handleDownload}
+      >
+        Download Chat History
+      </button>
     </div>
   );
 }

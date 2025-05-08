@@ -23,9 +23,9 @@ public class MessageController {
     private MessageService msgService;
     
     @PostMapping(value = "/message", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<MSGContent> handleMessage(@RequestBody MessageRequest.MSGContent msgReq) {
-        // msgService.getResponse(msgReq);
-        return msgService.getTestMsg();
+    public Flux<MSGContent> handleMessage(@RequestBody MessageRequest.FBMSGContent msgReq) {
+        msgService.getResponse(msgReq);
+        return msgService.getMsg();
     }
 
     @GetMapping("/flush")
