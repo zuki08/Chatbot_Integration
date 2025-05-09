@@ -32,6 +32,10 @@ export default function ChatWindow({model}:{model:string}) {
   }
 
   function handleMsgPush() {
+    if(model == "") {
+      alert("Select a model!");
+      return;
+    }
     setMessages((prev) => [
       ...prev,
       { role: "user", content: inputValue },
@@ -40,6 +44,7 @@ export default function ChatWindow({model}:{model:string}) {
     setInputValue("");
   }
   async function handlePost() {
+    if(model === "") return;
     const res = await fetch("http://localhost:8080/api/message", {
       method: "POST",
       headers: {
@@ -73,7 +78,7 @@ export default function ChatWindow({model}:{model:string}) {
     }    
   }
   return (
-    <div className="flex flex-col w-[30%] h-[80%] border-2 border-gray-200 bg-white dark:bg-black dark:border-none rounded-md">
+    <div className="flex flex-col w-[70%] h-[90%] md:w-[35%] md:h-[80%] border-2 border-gray-200 bg-white dark:bg-black dark:border-none rounded-md">
       <div id="chat-window" className="flex flex-col mx-[1%] my-[0.5%] h-[89%] overflow-y-scroll rounded-md bg-gray-300 dark:bg-black scroll-smooth">
         {messages.map((e, idx) => {
           return (
