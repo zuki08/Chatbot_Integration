@@ -13,7 +13,7 @@ export default function ModelDropdown({model, setModel}:{model:string, setModel:
     ]
     return (
         <div>
-            <select value={model} onChange={(e) => setModel(e.target.value)}>
+            <select value={model} onChange={(e) => setModel(e.target.value)} className="dark:text-white">
                 {options.map((e, idx) => {
                     return <option value={e.APIName} key={e.name+idx}>{e.name}</option>
                 })}
